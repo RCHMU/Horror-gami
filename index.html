@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ABANDONED HALLOW - ENTER IF YOU DARE</title>
+    <style>
+        /* ----- RESET & BASE STYLES ----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none; /* අමතර බියකරු අත්දැකීමක් සඳහා */
+        }
+
+        body {
+            font-family: 'Courier New', 'Courier', monospace;
+            background-color: #000;
+            min-height: 200vh; /* ස්ක්රෝල් කිරීමට අවශ්‍ය උස */
+            overflow-x: hidden;
+            transition: transform 0.05s linear; /* screen shake සඳහා */
+        }
+
+        /* ----- භයානක පසුබිම (blur + slow pan + flicker) ----- */
+        .bg-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .bg-image {
+            position: absolute;
+            top: -10%;
+            left: -10%;
+            width: 120%;
+            height: 120%;
+            background-image: url('https://images.pexels.com/photos/2079249/pexels-photo-2079249.jpeg?auto=compress&cs=tinysrgb&w=1600&h=900&dpr=2');
+            background-size: cover;
+            background-position: center;
+            filter: blur(5px) brightness(0.4);
+            animation: slowPan 28s infinite alternate ease-in-out;
+        }
+
+        /* flicker effect - ලාම්පුව මිය යන සේ */
+        .flicker-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            pointer-events: none;
+            animation: lightFlicker 0.12s infinite;
+            z-index: 1;
+        }
+
+        /* ----- FILM GRAIN (canvas-based dynamic noise) ----- */
+        #grain-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 20;
+            opacity: 0.35;
+            mix-blend-mode: overlay;
+        }
+
+        /* ----- ENTRY GATE OVERLAY (Audio Lock) ----- */
+        .entry-gate {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: black;
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            backdrop-filter: blur(8px);
+            transition: opacity 0.8s ease;
+            font-family: 'Courier New', monospace;
+        }
+
+        .warning-box {
+            max-width: 650px;
+            padding: 2rem;
+            border: 3px solid #8b0000;
+            background: rgba(0, 0, 0, 0.85);
+            box-shadow: 0 0 50px rgba(139, 0, 0, 0.6);
+            animation: borderPulse 1.2s infinite;
+        }
+
+        .warning-box h1 {
+            color: #ff0000;
+            font-size: 4rem;
+            text-shadow: 0 0 8px darkred;
+            letter-spacing: 6px;
+            margin-bottom: 1.5rem;
+        }
+
+        .warning-text {
+            color: #ccc;
+            font-size: 1.2rem;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+
+        .epilepsy-warning {
+            color: #ff6666;
+            background: #1a0000;
+            padding: 12px;
+            margin: 20px 0;
+            border-left: 5px solid red;
+        }
+
+        .enter-btn {
+            background: #5a0000;
+            border: 2px solid #ff3333;
+            color: white;
+            font-size: 1.8rem;
+            font-weight: bold;
+            padding: 12px 32px;
+            cursor: pointer;
+            font-family: monospace;
+            margin-top: 30px;
+            transition: 0.2s;
+            letter-spacing: 4px;
+        }
+
+        .enter-btn:hover {
+            background: #8b0000;
+            box-shadow: 0 0 20px red;
+            transform: scale(1.03);
+        }
+
+        /* ----- ප්‍රධාන content (overlay ඉවත් වූ පසු දිස්වේ) ----- */
+        .main-content {
+            position: relative;
+            z-index: 10;
+            padding: 2rem 1rem 6rem;
+            color: #e0e0e0;
+            text-align: center;
+            pointer-events: auto;
+        }
+
+        /* GLITCH EFFECT - ලේ වැගිරෙන ශීර්ෂ */
+        .glitch-title {
+            font-size: 4.5rem;
+            font-weight: 800;
+            color: #b91c1c;
+            text-transform: uppercase;
+            text-shadow: 0.05em 0 0 rgba(255,0,0,0.75), -0.05em -0.025em 0 rgba(0,255,0,0.75);
+            animation: glitch 0.25s infinite;
+            margin-bottom: 1rem;
+        }
+
+        .glitch-sub {
+            font-size: 1.7rem;
+            color: #a12222;
+            animation: glitch 0.35s infinite;
+            margin-bottom: 2rem;
+        }
+
+        /* EYES CONTAINER - බියකරු ඇස් */
+        .eyes-wrapper {
+            display: flex;
+            justify-content: center;
+            gap: 4rem;
+            margin: 3rem auto;
+            position: relative;
+            z-index: 25;
+        }
+
+        .eye {
+            width: 130px;
+            height: 130px;
+            background: radial-gradient(circle at 30% 30%, #f8f0e6, #b34e4e);
+            border-radius: 50%;
+            position: relative;
+            box-shadow: 0 0 20px rgba(180, 0, 0, 0.7), inset 0 0 15px rgba(0,0,0,0.6);
+            cursor: none;
+            border: 2px solid #631212;
+        }
+
+        /* රුධිර වාහිනී සඳහා pseudo */
+        .eye::before {
+            content: "";
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: repeating-linear-gradient(45deg, rgba(120, 0, 0, 0.3), rgba(120, 0, 0, 0.3) 8px, rgba(70, 0, 0, 0.1) 8px, rgba(70, 0, 0, 0.1) 16px);
+            pointer-events: none;
+        }
+
+        .pupil {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            background: radial-gradient(circle, #0a0a0a, #2b1e1e);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: transform 0.03s linear;
+            box-shadow: inset 0 0 5px #ff4d4d, 0 0 5px rgba(255,0,0,0.5);
+        }
+
+        .pupil::after {
+            content: "";
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            top: 10px;
+            left: 8px;
+            opacity: 0.8;
+        }
+
+        /* creepy content - අමතර අන්තර්ගතය (scroll එකට) */
+        .content-text {
+            max-width: 800px;
+            margin: 50px auto;
+            background: rgba(0,0,0,0.65);
+            padding: 2rem;
+            border: 1px solid #6a0e0e;
+            font-size: 1.2rem;
+            line-height: 1.7;
+            backdrop-filter: blur(3px);
+        }
+
+        /* Jumpscare overlay */
+        .jumpscare-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: black;
+            z-index: 20000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            animation: none;
+        }
+
+        .jumpscare-overlay img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* screen shake animation */
+        .shake-active {
+            animation: violentShake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+        }
+
+        /* ----- KEYFRAMES (භීතිය) ----- */
+        @keyframes glitch {
+            0% { transform: skew(0deg, 0deg); opacity: 1; text-shadow: 0.05em 0 0 red, -0.05em -0.025em 0 green; }
+            20% { transform: skew(2deg, 1deg); text-shadow: -0.05em 0 0 cyan, 0.05em 0.025em 0 red; opacity: 0.9; }
+            40% { transform: skew(-2deg, -1deg); text-shadow: 0.05em 0.025em 0 magenta, -0.05em -0.025em 0 lime; }
+            70% { transform: skew(1deg, 0.5deg); opacity: 1; }
+            100% { transform: skew(0deg, 0deg); text-shadow: 0.05em 0 0 red, -0.05em -0.025em 0 green; }
+        }
+
+        @keyframes slowPan {
+            0% { transform: scale(1) translate(0%, 0%); }
+            100% { transform: scale(1.08) translate(3%, 2%); }
+        }
+
+        @keyframes lightFlicker {
+            0% { opacity: 0.2; background: rgba(0,0,0,0.2);}
+            25% { opacity: 0.6; background: rgba(0,0,0,0.4);}
+            50% { opacity: 0.15; background: rgba(0,0,0,0.1);}
+            75% { opacity: 0.5; background: rgba(0,0,0,0.3);}
+            100% { opacity: 0.25; background: rgba(0,0,0,0.25);}
+        }
+
+        @keyframes borderPulse {
+            0% { box-shadow: 0 0 10px #8b0000; border-color: #8b0000;}
+            100% { box-shadow: 0 0 35px #ff3300; border-color: #ff3300;}
+        }
+
+        @keyframes violentShake {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            20% { transform: translate(-8px, 5px) rotate(-2deg); }
+            40% { transform: translate(7px, -6px) rotate(2deg); }
+            60% { transform: translate(-5px, 4px) rotate(-1deg); }
+            80% { transform: translate(6px, -3px) rotate(1deg); }
+            100% { transform: translate(0, 0) rotate(0); }
+        }
+
+        /* scrollbar බියකරු වර්ණ */
+        ::-webkit-scrollbar {
+            width: 8px;
+            background: #1e0000;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #9e2a2a;
+            border-radius: 10px;
+        }
+
+        @media (max-width: 700px) {
+            .glitch-title { font-size: 2.2rem; }
+            .eye { width: 85px; height: 85px; }
+            .pupil { width: 32px; height: 32px; }
+            .eyes-wrapper { gap: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ENTRY GATE (Audio Lock) -->
+<div id="entryGate" class="entry-gate">
+    <div class="warning-box">
+        <h1>⚠️ අනතුරු ඇඟවීම ⚠️</h1>
+        <div class="warning-text">මෙම අඩවියෙහි හදිසි භීතිය (Jumpscares), උස් ශබ්ද, ඇස් පිපෙන ආලෝක රටා අඩංගු වේ.</div>
+        <div class="epilepsy-warning">
+            🔴 අපස්මාරය, හෘද රෝගීන් සඳහා සුදුසු නොවේ 🔴<br>
+            දැඩි ශබ්ද, ඇසිපිය හෙළන රූප සහ අනපේක්ෂිත බියකරු දර්ශන ඇතුළත්ය.
+        </div>
+        <div class="warning-text">ඔබේ වගකීමෙන් පමණක් ඇතුළු වන්න.</div>
+        <button id="enterBtn" class="enter-btn">ENTER IF YOU DARE</button>
+    </div>
+</div>
+
+<!-- ප්‍රධාන අන්තර්ගතය (මුලින් සැඟවුණු නමුත් ගේට්ටුවෙන් පසුව පෙනේ) -->
+<div class="main-content" style="opacity:0; transition: opacity 1s ease;">
+    <div class="glitch-title">ABANDONED HALLOW</div>
+    <div class="glitch-sub">THE EYES ARE WATCHING</div>
+    
+    <!-- Creepy Tracking Eyes (divs with pupils) -->
+    <div class="eyes-wrapper" id="eyesWrapper">
+        <div class="eye" id="leftEye">
+            <div class="pupil" id="leftPupil"></div>
+        </div>
+        <div class="eye" id="rightEye">
+            <div class="pupil" id="rightPupil"></div>
+        </div>
+    </div>
+
+    <div class="content-text">
+        <p>ඔබ දැන් අතහැර දැමූ මන්දිරය තුළට පිවිස ඇත... සුළඟේ කෙඳිරිලි අතර යමක් ඔබ දෙස බලා සිටී. පහළට අනුචලනය කරන්න, එහෙත් පරිස්සම් වන්න... 65% ක් පසු කළ විට ඔබට මුහුණ දීමට සිදුවනු ඇත.</p>
+        <p style="margin-top:20px; font-size:1.5rem;">⬇️ පහළට අනුචලනය කරන්න ⬇️</p>
+        <div style="height: 85vh;"></div> <!-- scroll space -->
+        <p style="color:#8b3c3c;">ඔබට දැනෙනවාද? බිය ළඟා වෙමින්...</p>
+        <div style="height: 40vh;"></div>
+    </div>
+</div>
+
+<!-- Background elements (pan, flicker) -->
+<div class="bg-container">
+    <div class="bg-image"></div>
+    <div class="flicker-overlay"></div>
+</div>
+
+<!-- Film Grain Canvas -->
+<canvas id="grain-canvas"></canvas>
+
+<!-- Jumpscare Container (full screen) -->
+<div id="jumpscareContainer" class="jumpscare-overlay">
+    <img id="scaryGif" src="" alt="TERROR">
+</div>
+
+<script>
+    (function() {
+        // -------------------- සිංහල විවරණ සහිත භීතිය එන්ජිම --------------------
+        // DOM elements
+        const entryGate = document.getElementById('entryGate');
+        const enterBtn = document.getElementById('enterBtn');
+        const mainContentDiv = document.querySelector('.main-content');
+        const jumpscareDiv = document.getElementById('jumpscareContainer');
+        const scaryGif = document.getElementById('scaryGif');
+        const bodyEl = document.body;
+
+        // Audio files - placeholder links (user විසින් ප්‍රතිස්ථාපනය කළ යුතුය)
+        const AMBIENT_AUDIO_URL = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'; // placeholder ambient (replace with actual horror wind)
+        const SCREAM_AUDIO_URL = 'https://www.myinstants.com/media/sounds/scream-sound-effect.mp3'; // placeholder scream
+
+        // වඩාත් යථාර්ථවාදී හඬවල් සඳහා replace කරන්න.
+        // actual ව්‍යාපෘතියේදී මෙම links භයානක සැබෑ ශබ්ද වලින් ප්‍රතිස්ථාපනය කරන්න.
+        
+        // අවශ්‍ය variables
+        let ambientAudio = null;
+        let screamAudio = null;
+        let gateOpened = false;
+        let jumpscareTriggered = false;
+        let screenShakeTimeout = null;
+        let jumpscareTimeout = null;
+        
+        // Eyes tracking එක සඳහා
+        const leftEyeEl = document.getElementById('leftEye');
+        const rightEyeEl = document.getElementById('rightEye');
+        const leftPupil = document.getElementById('leftPupil');
+        const rightPupil = document.getElementById('rightPupil');
+        
+        // Eye dimensions (pupil max offset)
+        let leftEyeRect, rightEyeRect;
+        const maxPupilOffset = 32; // eye radius (65px) minus pupil radius (24px) ~ 41px, safe offset 32px
+        
+        // audio preload (play after user click)
+        function initAudio() {
+            ambientAudio = new Audio(AMBIENT_AUDIO_URL);
+            ambientAudio.loop = true;
+            ambientAudio.volume = 0.5;
+            screamAudio = new Audio(SCREAM_AUDIO_URL);
+            screamAudio.volume = 0.9;
+            screamAudio.preload = 'auto';
+            ambientAudio.preload = 'auto';
+        }
+        
+        // start ambient after gate opens
+        function playAmbient() {
+            if (ambientAudio) {
+                ambientAudio.play().catch(e => console.warn("Ambient play error:", e));
+            }
+        }
+        
+        // ************** FILM GRAIN (dynamic canvas noise) **************
+        const grainCanvas = document.getElementById('grain-canvas');
+        let ctx = grainCanvas.getContext('2d');
+        let grainAnimationFrame;
+        
+        function resizeGrainCanvas() {
+            grainCanvas.width = window.innerWidth;
+            grainCanvas.height = window.innerHeight;
+        }
+        
+        function drawFilmGrain() {
+            if (!ctx) return;
+            const w = grainCanvas.width;
+            const h = grainCanvas.height;
+            const imageData = ctx.createImageData(w, h);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                const val = Math.random() * 255;
+                data[i] = val;     // R
+                data[i+1] = val;   // G
+                data[i+2] = val;   // B
+                data[i+3] = Math.random() * 80 + 30; // alpha
+            }
+            ctx.putImageData(imageData, 0, 0);
+            grainAnimationFrame = requestAnimationFrame(drawFilmGrain);
+        }
+        
+        function startFilmGrain() {
+            resizeGrainCanvas();
+            drawFilmGrain();
+        }
+        
+        window.addEventListener('resize', () => {
+            if (grainCanvas) {
+                resizeGrainCanvas();
+            }
+        });
+        
+        // ************** EYES TRACKING (cursor follow) **************
+        function updateEyePositions(mouseX, mouseY) {
+            if (!leftEyeEl || !rightEyeEl) return;
+            // get current bounding rects (relative to viewport)
+            const leftRect = leftEyeEl.getBoundingClientRect();
+            const rightRect = rightEyeEl.getBoundingClientRect();
+            
+            // left eye center coordinates
+            const leftCenterX = leftRect.left + leftRect.width / 2;
+            const leftCenterY = leftRect.top + leftRect.height / 2;
+            // right eye center
+            const rightCenterX = rightRect.left + rightRect.width / 2;
+            const rightCenterY = rightRect.top + rightRect.height / 2;
+            
+            // calculate delta
+            const leftDeltaX = mouseX - leftCenterX;
+            const leftDeltaY = mouseY - leftCenterY;
+            const rightDeltaX = mouseX - rightCenterX;
+            const rightDeltaY = mouseY - rightCenterY;
+            
+            // limit movement using angle
+            function getLimitedOffset(dx, dy, limit) {
+                const distance = Math.hypot(dx, dy);
+                if (distance === 0) return { x: 0, y: 0 };
+                const ratio = Math.min(1, limit / distance);
+                return { x: dx * ratio, y: dy * ratio };
+            }
+            
+            const leftOffset = getLimitedOffset(leftDeltaX, leftDeltaY, maxPupilOffset);
+            const rightOffset = getLimitedOffset(rightDeltaX, rightDeltaY, maxPupilOffset);
+            
+            // apply to pupils: transform: translate(calc(-50% + Xpx), calc(-50% + Ypx))
+            leftPupil.style.transform = `translate(calc(-50% + ${leftOffset.x}px), calc(-50% + ${leftOffset.y}px))`;
+            rightPupil.style.transform = `translate(calc(-50% + ${rightOffset.x}px), calc(-50% + ${rightOffset.y}px))`;
+        }
+        
+        let mouseX = 0, mouseY = 0;
+        function onMouseMove(e) {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            if (gateOpened) {
+                updateEyePositions(mouseX, mouseY);
+            }
+        }
+        document.addEventListener('mousemove', onMouseMove);
+        
+        // ************** Jumpscare Trigger (scroll to 65%) **************
+        function triggerJumpscare() {
+            if (jumpscareTriggered) return;
+            if (!gateOpened) return;
+            jumpscareTriggered = true;
+            
+            // set jumpscare image (placeholder GIF - user must replace with actual screaming face)
+            // භයානක GIF එකක් සඳහා placeholder link, replace කරන්න.
+            scaryGif.src = 'https://media3.giphy.com/media/3o7abB06u9bNzA8LC8/giphy.gif?cid=790b7611a8c0n6e5x8m4bq3y9z7j2h1f0e6d5c4b3a2&ep=v1_gifs_search&rid=giphy.gif&ct=g';
+            // if image fails, at least background black remains
+            jumpscareDiv.style.display = 'flex';
+            
+            // Play SCREAM sound effect
+            if (screamAudio) {
+                screamAudio.currentTime = 0;
+                screamAudio.play().catch(e => console.warn("Scream play error", e));
+            }
+            
+            // violent screen shake effect on body
+            bodyEl.classList.add('shake-active');
+            if (screenShakeTimeout) clearTimeout(screenShakeTimeout);
+            screenShakeTimeout = setTimeout(() => {
+                bodyEl.classList.remove('shake-active');
+            }, 500);
+            
+            // auto-hide jumpscare after 1.5 seconds
+            if (jumpscareTimeout) clearTimeout(jumpscareTimeout);
+            jumpscareTimeout = setTimeout(() => {
+                jumpscareDiv.style.display = 'none';
+                // reset jumpscareTriggered flag? no, we keep it true so it doesn't happen again
+            }, 1500);
+        }
+        
+        // scroll listener
+        function handleScroll() {
+            if (!gateOpened) return;
+            if (jumpscareTriggered) return;
+            const scrollTop = window.scrollY;
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            if (docHeight <= 0) return;
+            const scrollPercent = (scrollTop / docHeight) * 100;
+            if (scrollPercent >= 65) {
+                triggerJumpscare();
+            }
+        }
+        
+        // ************** ENTRY GATE: OPEN THE VOID **************
+        function openGate() {
+            if (gateOpened) return;
+            gateOpened = true;
+            // play ambient audio (wind/whisper)
+            playAmbient();
+            // fade out gate overlay
+            entryGate.style.opacity = '0';
+            setTimeout(() => {
+                entryGate.style.display = 'none';
+            }, 800);
+            // show main content with fade
+            mainContentDiv.style.opacity = '1';
+            // start film grain effect if not started
+            startFilmGrain();
+            // attach scroll listener
+            window.addEventListener('scroll', handleScroll);
+            // initial eyes update
+            if (mouseX !== undefined) updateEyePositions(mouseX, mouseY);
+        }
+        
+        // ************** initialization & preload **************
+        function setup() {
+            initAudio();
+            // set background image placeholder comments, already CSS uses external image.
+            // ensure that entry button works
+            enterBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                openGate();
+            });
+            // pre-hide jumpscare initially
+            jumpscareDiv.style.display = 'none';
+            // grain canvas setup
+            resizeGrainCanvas();
+            // tiny safety: prevent accidental scroll trigger before gate open
+            window.addEventListener('scroll', () => {
+                if (!gateOpened) return;
+                handleScroll();
+            });
+        }
+        
+        // add window resize eye re-evaluation trigger (optional)
+        window.addEventListener('resize', () => {
+            if (gateOpened && mouseX !== undefined) {
+                updateEyePositions(mouseX, mouseY);
+            }
+        });
+        
+        setup();
+        
+        // extra: body flicker sync warning - අමතර බිය සඳහා console භීතියක් නැත
+        console.log("%c⚠️ ඔබගේ ආත්මය මෙහි සිරවී ඇත... ⚠️", "color: red; font-size: 20px; font-family: monospace;");
+    })();
+</script>
+</body>
+</html>
